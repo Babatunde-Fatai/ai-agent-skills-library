@@ -1,7 +1,9 @@
 ---
 name: flutterwave-integration
-description: Implement Flutterwave payment processing for African markets (34+ countries). Use when integrating one-time payments (card, bank transfer, USSD, mobile money), subscriptions/recurring billing, or webhook handling. Covers Next.js and Express implementations with TypeScript. Triggers: payment integration, Flutterwave setup, accept payments Africa, NGN/GHS/KES/ZAR payments, mobile money, M-Pesa, MTN, subscription billing, payment webhooks, Flutterwave API, tx_ref, verif-hash.
+description: >
+  Implement Flutterwave payment processing for African markets (34+ countries). Use when integrating one-time payments (card, bank transfer, USSD, mobile money), subscriptions/recurring billing, or webhook handling. Covers Next.js and Express implementations with TypeScript. Triggers: payment integration, Flutterwave setup, accept payments Africa, NGN/GHS/KES/ZAR payments, mobile money, M-Pesa, MTN, subscription billing, payment webhooks, Flutterwave API, tx_ref, verif-hash.
 ---
+
 
 ## For Coding Agents: Start Here
 

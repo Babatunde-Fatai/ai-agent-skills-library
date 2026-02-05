@@ -1,7 +1,9 @@
 ---
 name: paystack-integration
-description: Implement Paystack payment processing for Nigerian and African markets. Use when integrating one-time payments (initialize, redirect/popup, verify), subscriptions/recurring billing (plans, customers, subscriptions), or webhook handling. Covers Next.js and Express implementations with TypeScript. Triggers: payment integration, Paystack setup, accept payments Nigeria, NGN payments, subscription billing, payment webhooks, Paystack API, kobo conversion.
+description: >
+  Implement Paystack payment processing for Nigerian and African markets. Use when integrating one-time payments (initialize, redirect/popup, verify), subscriptions/recurring billing (plans, customers, subscriptions), or webhook handling. Covers Next.js and Express implementations with TypeScript. Triggers: payment integration, Paystack setup, accept payments Nigeria, NGN payments, subscription billing, payment webhooks, Paystack API, kobo conversion.
 ---
+
 
 # Paystack Integration
 

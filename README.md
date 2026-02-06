@@ -12,7 +12,7 @@ AI coding agents are powerful, but they need domain context to implement things 
 |-------|----------|--------------|
 | [Flutterwave Integration](payment-gateway-integrations-skills/flutterwave-integration/) | 34+ African countries | Mobile money, card, bank transfer, subscriptions |
 | [Paystack Integration](payment-gateway-integrations-skills/paystack-integration/) | Nigeria, Ghana, Kenya, South Africa | Card, bank, USSD, subscriptions |
-| [Social Auth Core](authentication-skills/social-auth-core/) | OAuth 2.0 + OIDC | Auth Code + PKCE, sessions, account linking, multi-provider |
+| [Social Auth Core](authentication-skills/social-auth-core/) | OAuth 2.0 + OIDC | Google, GitHub, LinkedIn, Apple, Twitter/X + PKCE, sessions, account linking |
 
 > More skills coming soon — contributions welcome.
 
@@ -324,6 +324,16 @@ These skills handle financial transactions. Before moving to production:
 # Social Auth Core Skill
 
 A security-first AI agent skill for implementing OAuth 2.0 + OpenID Connect (OIDC) social login. Provider-agnostic, framework-agnostic, and designed to enforce a deterministic, safe execution order before any code is written.
+
+## Supported Providers (Out of the Box)
+
+- Google
+- GitHub
+- LinkedIn
+- Apple
+- Twitter/X
+
+If you need another provider, this skill includes a clear pattern for adding a new provider file under `authentication-skills/social-auth-core/references/providers/`.
 
 ## What This Skill Does
 

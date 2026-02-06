@@ -2,6 +2,16 @@
 
 A security-first AI agent skill for implementing OAuth 2.0 + OpenID Connect (OIDC) social login. Provider-agnostic, framework-agnostic, and designed to enforce a deterministic, safe execution order before any code is written.
 
+## Supported Providers (Out of the Box)
+
+- Google
+- GitHub
+- LinkedIn
+- Apple
+- Twitter/X
+
+If you need another provider, follow the skill’s pattern and add a new provider reference under `references/providers/`.
+
 ## What This Skill Does
 
 This skill provides structured guidance for agents implementing:

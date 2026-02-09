@@ -1,9 +1,7 @@
 ---
 name: supagent-core
-description: Core superagent orchestration. Always active. Detects project context, manages .superagent/ structure, routes to specialized skills. Automatically invoked at conversation start.
+description: Core superagent orchestration. Always ok skill. Detects project context, manages .superagent/ structure, routes to specialized skills. Automatically invoked at conversation start.
 auto_load: true
-What problem it solves: Defines non-negotiable safety invariants and role separation.
-Prerequisites: None — this is the primary prerequisite for implementation.
 priority: 1
 ---
 

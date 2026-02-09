@@ -18,23 +18,38 @@
    - `.supagent/MEMORY.md` - Check for conflicts with current task
    - `.supagent/TASK_RULES.md` - Task-specific instructions
 
-3. **Load Required Skills**
-   - Based on request and context, User mentions name and keywords from `.supagent/config.json` triggers:
+3. **Skill Loading Protocol**
+   **Never preload. Load only when:**
+   - User request context, matches trigger keywords or name and keywords from `.supagent/config.json` triggers:
    → Load corresponding skill if not in active-skills.json
 
    - User says "continue" or references previous work:
-   → Check `.supagent/MEMORY.md` & latest SESSION.md for context, reactivate skills mentioned there or necessary
+   → Check `.supagent/MEMORY.md` & latest SESSION.md for context, reactivate skills mentioned there deemed necessary
 
    - User starts new feature/task with no clear skill match:
    → Proceed normally, offer skill suggestions if applicable
 
-   - Based on request and context, check `.supagent/config.json` for all available skills, name and keywords, and load any skill that is relevant to your current task. 
+   - User explicitly requests skill
 
-**YOU MUST acknowledge in your first response:**
+**To load:** Use the Skill tool with skill name
+
+**YOU MUST INFORM USER:**
 ```
-Session: [created/opened] .claude/sessions/YYYY-MM-DD-SESSION.md
-Memory: [read/no conflicts] or [read/found: <conflict summary>]
-Skills: [e.g loaded karpathy-guidelines, ...]
+✓ Initialized Supagent for this ${project.type} project
+Created:
+- .supagent/AGENT_INIT.md (skill routing logic)
+- .supagent/config.json (project configuration)
+- .supagent/MEMORY.md (for project context)
+- .supagent/SESSION.md (for session continuity)
+
+Based on your project structure, I can help with:
+${list recommended skills and their purposes}
+
+Would you like to:
+1. Discuss the project to create plans, roadmap, and tasks
+2. Jump right into defining a feature to build
+
+What would you prefer?
 ```
 
 ---

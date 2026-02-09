@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "type": "${detected.type}",
+    "framework": "${detected.framework}",
+    "initialized": "${timestamp}"
+  },
+  "available_skills": [
+    {
+      "name": "paystack-integration",
+      "path": "payment-gateway-skills/paystack-integration",
+      "triggers": ["payment", "paystack", "billing", "nigeria"],
+      "auto_load": false
+    }
+  ],
+  "user_preferences": {}
+}

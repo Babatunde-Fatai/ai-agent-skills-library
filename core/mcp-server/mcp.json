@@ -1,0 +1,23 @@
+{
+  "name": "supagent",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "name": "supagent-core",
+      "path": "../../skills/supagent-core/SKILL.md",
+      "auto_load": true,         // Always inject into context
+      "priority": 1              // Load first
+    },
+    {
+      "name": "paystack-integration",
+      "path": "../../skills/payment-gateway-skills/paystack-integration/SKILL.md",
+      "auto_load": false,        // Load on demand
+      "triggers": ["payment", "paystack", "nigeria"]
+    }
+    // ... other skills
+  ],
+  "defaults": {
+    "check_for_supagent_dir": true,
+    "auto_initialize": true
+  }
+}

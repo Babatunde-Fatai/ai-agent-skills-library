@@ -1,71 +1,100 @@
 # Data Model Patterns
 
-**When to read:** When changing or validating auth-related schemas.
-**What problem it solves:** Multi-provider user/account modeling.
-**When to skip:** If schema is already compliant and unchanged.
-**Prerequisites:** Read `references/governance/account-linking.md`.
+## Purpose
 
-**ADAPTABILITY RULE:** Do not copy-paste these schemas. Adapt them to the project's specific ORM (Prisma, TypeORM, Mongoose, Sequelize) and naming conventions (camelCase vs snake_case).
+Defines reusable data-model patterns for multi-provider social authentication.
 
-## The Core Concept: 1 User, N Identities
-You must separate the "Human" (User) from the "Login Method" (Account/Identity).
+## Relationship to Core Rules
 
-## Normalized Schema Pattern (Relational / SQL)
+Global identity-linking policy is governed by:
 
-### 1. User Table
-*The profile entity.*
-- `id`: Primary Key
-- `email`: Unique, Indexed
-- `emailVerified`: Timestamp (Nullable)
-- `image`: URL
-- `name`: String
+- `../governance/account-linking.md`
 
-### 2. Account (or Identity) Table
-*The authentication link.*
-- `id`: Primary Key
-- `userId`: Foreign Key -> User.id
-- `provider`: String (e.g., 'google', 'github')
-- `providerAccountId`: String (External ID, e.g., Google's 'sub')
-- `type`: String ('oauth', 'oidc')
-- **Tokens (Encrypted at rest if possible):**
-  - `access_token`: Text
-  - `refresh_token`: Text
-  - `expires_at`: Int
-  - `token_type`: String
-  - `scope`: String
-  - `id_token`: Text
+This file defines model patterns only. It does not replace linking governance.
 
-### 3. Session Table (If not using JWTs)
-- `sessionToken`: Unique, Indexed
-- `userId`: Foreign Key -> User.id
-- `expires`: Timestamp
+## When to Use
 
-**Required Constraints:**
-- Compound Unique Index on Account: `(provider, providerAccountId)`
+Use this file when creating or validating schema changes for social authentication.
 
----
+## Core Model Principle
 
-## Document Schema Pattern (NoSQL / MongoDB)
+Separate:
 
-Embed accounts *or* reference them, depending on access patterns.
+- the human/application user
+- the external provider identity
 
-```json
-// User Collection
-{
-  "_id": "ObjectId",
-  "email": "user@example.com",
-  "emailVerified": ISODate("..."),
-  "name": "User Name",
-  "accounts": [
-    {
-      "provider": "google",
-      "providerAccountId": "123456789",
-      "accessToken": "...",
-      "refreshToken": "..."
-    }
-  ]
-}
+A single user may have multiple external identities.
 
-Constraint: Ensure accounts.provider + accounts.providerAccountId is unique across the collection.
+## Relational Pattern
 
----
+### User Table
+
+Represents the local application user.
+
+Typical fields:
+
+- `id`
+- `email`
+- `emailVerified`
+- `name`
+- `image`
+- audit timestamps
+
+### Identity / Account Table
+
+Represents the provider login method.
+
+Typical fields:
+
+- `id`
+- `userId`
+- `provider`
+- `providerAccountId`
+- `type` (`oauth` or `oidc`)
+- token metadata if stored
+- granted scopes if useful
+- audit timestamps
+
+### Constraints
+
+- unique `(provider, providerAccountId)`
+- foreign key from identity to user
+- indexes supporting provider lookup and user linkage
+
+## Token Storage Consideration
+
+If tokens are stored:
+
+- keep them in the identity/account table or a related token table
+- encrypt sensitive values at rest
+- separate long-lived secret material from broad user-profile concerns where possible
+
+## Document Pattern (NoSQL)
+
+Where a document model is used, preserve the same conceptual separation:
+
+- stable local user document
+- nested or related provider identities
+- unique provider identity constraint enforced by the application or datastore
+
+## Multi-Provider Expectations
+
+A correct model should support:
+
+- multiple providers per user
+- disconnecting one provider without deleting the user
+- linking policy enforcement
+- provider lookup by `(provider, providerAccountId)`
+
+## Anti-Patterns
+
+Avoid:
+
+- using email as the sole external identity key
+- storing provider subject/account ID only on the user row when multiple providers may exist
+- mixing provider-specific token state into unrelated profile fields
+
+## Maintenance Rule
+
+- reusable model patterns belong here
+- concrete ORM or migration examples should be adapted to the target project

@@ -3,143 +3,255 @@ name: social-auth
 description: Security control system for OAuth 2.0 and OpenID Connect social login. Enforces discovery, strict security invariants, and deterministic outputs before any code is written. Covers OAuth login, provider integration, auth code plus PKCE flow, token and session handling, account linking, multi provider auth, and framework adapters (Next.js, Express, Node). Triggers on login flows, callbacks, token exchange, refresh, cookies, and adapter setup.
 ---
 
+## Purpose
+
+This skill orchestrates secure implementation of OAuth 2.0 and OpenID Connect social authentication flows.
+
+It is responsible for:
+
+- discovery before implementation
+- routing to the correct provider, pattern, adapter, and governance documentation
+- enforcing skill-specific constraints for social authentication
+- ensuring that social auth is implemented alongside existing application boundaries without weakening repository-wide rules
+
+This skill extends the global repository rules defined in:
+
+- `../../core/SECURITY_INVARIANTS.md`
+- `../../core/EXECUTION_RULES.md`
+- `../../core/STOP_CONDITIONS.md`
+- `../../core/DECISION_MODEL.md`
+
+These core documents are mandatory and remain the source of truth for global security, execution behaviour, stop conditions, and conflict resolution.
+
 ## Quick Navigation
 
-**⚠️ READ FIRST**: [AGENT_EXECUTION_SPEC.md](references/AGENT_EXECUTION_SPEC.md) - Security contract and execution order
+**⚠️ SKILL-SPECIFIC READ FIRST (after core docs)**: `references/AGENT_EXECUTION_SPEC.md`
+
+Global repository rules are defined in `../../core/` and must be read before skill-specific execution documents.
+
+Supporting references:
 
 - **Providers**: Google | GitHub | LinkedIn | Apple | Twitter/X
-- **Patterns**: OAuth Flow | Golden Path | Token Management | Refresh Token Lifecycle | Sessions | Data Models  
+- **Patterns**: OAuth Flow | Golden Path | Token Management | Refresh Token Lifecycle | Sessions | Data Models
 - **Adapters**: Next.js | Express | Vanilla Node | Pseudocode | Laravel | Django | Flask | Rails | Vue
 - **Governance** (mandatory): Env Contract | Error Handling | Account Linking | Testing
 
+## Mandatory Reading Order
+
+Read in this order before implementation:
+
+1. `../../core/SECURITY_INVARIANTS.md`
+2. `../../core/EXECUTION_RULES.md`
+3. `../../core/STOP_CONDITIONS.md`
+4. `../../core/DECISION_MODEL.md`
+5. `references/AGENT_EXECUTION_SPEC.md`
+6. All required governance files in `references/governance/`
+7. Required pattern files in `references/patterns/`
+8. Required provider files in `references/providers/`
+9. Required adapter files in `references/adapters/`
+
+Examples and concrete implementation patterns must be read only after the rule-bearing documents above have been understood.
 
 ## Mandatory Start (No Code)
 
-1. Produce a Discovery Report before any code or config changes.
-2. Read mandatory references: `references/AGENT_EXECUTION_SPEC.md` and all governance references in `references/governance/`.
-3. Confirm provider(s), framework, language, deployment environment, and session strategy. If any are missing or ambiguous, stop and ask.
-4. Verify current provider documentation and security guidance (RFC 9700, RFC 7636, RFC 8252, OIDC Core) before implementation.
+Before any code or config change:
+
+1. Produce a Discovery Report.
+2. Read `references/AGENT_EXECUTION_SPEC.md`.
+3. Read all mandatory governance references in `references/governance/`.
+4. Confirm provider(s), framework, runtime, deployment environment, callback ownership model, and session strategy.
+5. Verify current provider documentation and security guidance before implementation.
+6. If required discovery inputs are missing or ambiguous, stop and ask rather than guessing.
+
+This skill inherits all global stop conditions from `../../core/STOP_CONDITIONS.md`.
+
+## Skill-Specific Discovery Requirements
+
+The Discovery Report for this skill must identify, at minimum:
+
+- detected framework and runtime
+- whether the implementation is frontend-only, backend-only, or full-stack
+- existing auth stack and session model
+- existing user model and account-linking strategy
+- current OAuth providers already integrated
+- any existing callback/login/logout/auth-me routes
+- deployment topology, domains, and redirect URI constraints
+- environment variable system and secrets manager
+- current CSRF, rate limiting, and logging redaction middleware
+- existing auth middleware, guards, or route protection patterns
+- whether auth state is server-driven, token-driven, or hybrid
+- whether the requested flow is OAuth-only or OIDC-based
+- whether multiple social providers must coexist now or later
+
+If any required item is unknown and cannot be safely inferred, stop and ask.
 
 ## Multi-Part Implementation Note
 
-OAuth/OIDC requires coordination between frontend and backend. This skill assumes full-stack access. If implementing in parts:
+OAuth and OIDC social authentication often require coordination between frontend and backend. This skill assumes that the implementation path must be selected explicitly during discovery.
 
-Scenario 1: Backend-only access
-- Implement login start and callback routes.
-- Document the route URLs for the frontend team.
-- Provide success and error redirect URLs.
-- See "Role Selection and Multi-Part Implementation" in `references/AGENT_EXECUTION_SPEC.md`.
+### Scenario 1: Backend-only access
 
-Scenario 2: Frontend-only access
-- Implement a login button that calls an existing backend route.
-- Do not implement OAuth flow logic client-side.
-- Use the Frontend-Only Discovery Report in AGENT_EXECUTION_SPEC.md.
-- If the backend uses cookie-based sessions, configure API calls with credentials included and derive auth state from the server.
-- Do not modify existing auth logic unrelated to the social login being added.
+Use this mode when only the backend or API layer is in scope.
 
-Scenario 3: Full-stack access (recommended)
-- Implement backend first (routes, handlers, validation).
-- Then add frontend integration (button, redirects).
-- Test end-to-end before deploying.
+Responsibilities:
 
-## Discovery Report Requirements (Required First Output)
+- implement login start and callback routes
+- document the exact backend routes for the frontend
+- define success and error redirect behaviour
+- define session delivery behaviour
+- provide frontend integration guidance without implementing client-side auth logic
 
-Include these items, even if the user did not ask:
-- Detected framework and runtime (or ambiguity that blocks detection).
-- Existing auth stack, session store, user model, and account linking rules.
-- Current OAuth providers already integrated and any existing callback routes.
-- Deployment constraints (domains, redirect URIs, environment variable system, secrets manager).
-- Security middleware already present (CSRF, rate limiting, logging redaction).
+See `references/AGENT_EXECUTION_SPEC.md` for role-specific output requirements.
 
-If any required item is unknown and cannot be inferred from the repo, stop and ask.
+### Scenario 2: Frontend-only access
 
+Use this mode only when a backend social auth flow already exists.
+
+Responsibilities:
+
+- implement login button or route trigger to the backend
+- integrate with server-delivered auth state
+- configure credentialed API requests when cookie-based auth is used
+- avoid changes to unrelated existing auth logic
+
+Do not implement OAuth flow logic in the browser.
+
+### Scenario 3: Full-stack access (recommended)
+
+Use this mode when both frontend and backend are available.
+
+Recommended sequence:
+
+1. implement backend routes, handlers, validation, and session logic first
+2. integrate frontend button, redirects, and auth-state hydration second
+3. validate end-to-end behaviour before deployment
 
 ## Routing Logic
 
-Provider routing:
-- If provider is Google, read `references/providers/google.md`.
-- If provider is GitHub, read `references/providers/github.md`.
-- If provider is LinkedIn, read `references/providers/linkedin.md`.
-- If provider is Apple, read `references/providers/apple.md`.
-- If provider is Twitter/X, read `references/providers/twitter.md`.
-- If provider not supported, create a new provider file under `references/providers/` before proceeding.
-- [All require CREDENTIALS.md first] Google | GitHub | LinkedIn | Apple | Twitter/X
+### Provider routing
 
-Pattern routing:
-- Always read `references/patterns/oauth-flow-core.md`.
-- If you need a canonical end-to-end example, read `references/patterns/golden-path.md`.
-- If tokens are stored, refreshed, or revoked, read `references/patterns/token-management.md`.
-- If refresh tokens are issued or rotated, read `references/patterns/refresh-token-lifecycle.md`.
-- If sessions or cookies are used, read `references/patterns/session-handling.md`.
-- If the project has existing authentication, read `references/patterns/existing-auth-integration.md`.
-- If cookies are used across different domains, read `references/patterns/samesite-decision-tree.md`.
-- If OIDC ID token validation is needed without heavy dependencies, read `references/patterns/jwks-validation-helper.md`.
-- If database changes are needed, read `references/patterns/data-models.md`.
+After the provider is confirmed:
 
-Adapter routing:
-- If framework is Express, read `references/adapters/express-patterns.md`.
-- If framework is Next.js, read `references/adapters/nextjs-patterns.md`.
-- If framework is vanilla Node or custom server, read `references/adapters/vanilla-node-patterns.md`.
-- If framework is Laravel, read `references/adapters/laravel-patterns.md`.
-- If framework is Django, read `references/adapters/django-patterns.md`.
-- If framework is Flask, read `references/adapters/flask-patterns.md`.
-- If framework is Rails, read `references/adapters/rails-patterns.md`.
-- If framework is Vue, read `references/adapters/vue-patterns.md` and select a backend adapter for server routes.
-- If framework is unknown or not covered, read `references/adapters/pseudocode-patterns.md` and create a new adapter file.
+- If provider is Google, read:
+  - `references/providers/google/CREDENTIALS.md`
+  - `references/providers/google.md`
 
-Governance routing (mandatory in every task):
+- If provider is GitHub, read:
+  - `references/providers/github/CREDENTIALS.md`
+  - `references/providers/github.md`
+
+- If provider is LinkedIn, read:
+  - `references/providers/linkedin/CREDENTIALS.md`
+  - `references/providers/linkedin.md`
+
+- If provider is Apple, read:
+  - `references/providers/apple/CREDENTIALS.md`
+  - `references/providers/apple.md`
+
+- If provider is Twitter/X, read:
+  - `references/providers/twitter/CREDENTIALS.md`
+  - `references/providers/twitter.md`
+
+If a provider is requested but is not supported by both a provider guide and credential guidance, stop and surface the support gap before proceeding.
+
+### Pattern routing
+
+Always read:
+
+- `references/patterns/oauth-flow-core.md`
+
+Read additional patterns when relevant:
+
+- canonical end-to-end example → `references/patterns/golden-path.md`
+- token storage, refresh, revocation → `references/patterns/token-management.md`
+- refresh token lifecycle → `references/patterns/refresh-token-lifecycle.md`
+- sessions or cookies → `references/patterns/session-handling.md`
+- existing auth system present → `references/patterns/existing-auth-integration.md`
+- cross-domain cookies → `references/patterns/samesite-decision-tree.md`
+- OIDC ID token validation support → `references/patterns/jwks-validation-helper.md`
+- database changes required → `references/patterns/data-models.md`
+
+### Adapter routing
+
+After framework/runtime is confirmed:
+
+- Express → `references/adapters/express-patterns.md`
+- Next.js → `references/adapters/nextjs-patterns.md`
+- vanilla Node / custom server → `references/adapters/vanilla-node-patterns.md`
+- Laravel → `references/adapters/laravel-patterns.md`
+- Django → `references/adapters/django-patterns.md`
+- Flask → `references/adapters/flask-patterns.md`
+- Rails → `references/adapters/rails-patterns.md`
+- Vue → `references/adapters/vue-patterns.md` plus an appropriate backend adapter
+- unknown or unsupported framework → `references/adapters/pseudocode-patterns.md` and stop to surface adapter limitations where needed
+
+### Governance routing (mandatory for every task)
+
+Always read:
+
 - `references/governance/env-contract.md`
 - `references/governance/error-edge-cases.md`
 - `references/governance/account-linking.md`
 - `references/governance/testing-validation.md`
 
-
 ## Quick Architecture Router (Use After Discovery)
 
-Once you've completed the Discovery Report and confirmed the provider, use this router to find relevant documentation quickly:
+This router is a convenience layer and does not replace discovery.
 
-**Backend Architecture**:
-- Separate API + frontend → Section 4.2 (JWT) or 4.3 (Sessions)
-- Monolithic (Next.js, Rails, Django) → Section 4.3 + framework adapter
-- Serverless → Section 4.4 (not yet implemented, use pseudocode patterns)
+### Backend architecture
 
-**Provider Documentation**:
-- Confirmed provider → `references/providers/{provider}/CREDENTIALS.md` then `references/providers/{provider}.md`
-- Multiple providers → Read multi-provider patterns first
+- Separate API + frontend → evaluate token/session architecture and relevant adapter patterns
+- Monolithic application (for example Next.js, Rails, Django) → use session-oriented patterns plus relevant framework adapter
+- Serverless → use pseudocode patterns if no dedicated adapter exists and surface any unresolved runtime constraints
 
-**Account Linking**:
-- Have `auth_identities` table → Section 5.1
-- Only `users` table → Section 5.2
+### Provider documentation
 
-This router does NOT replace discovery. Always complete the Discovery Report first.
+- Confirmed provider → read `references/providers/{provider}/CREDENTIALS.md` first, then `references/providers/{provider}.md`
+- Multiple providers → read provider docs for each confirmed provider and ensure multi-provider compatibility from the beginning
 
+### Account linking
 
+- Existing identity-linking table or strategy → align implementation with that design
+- Only a users table exists → consult data-model and account-linking governance docs before proposing schema changes
 
-## Forbidden Practices (Explicitly Prohibited)
+## Skill-Specific Constraints
 
-- Implicit flow or token response in front-channel redirects.
-- Skipping `state` or `nonce` validation.
-- Wildcard or open redirect URI matching.
-- Storing access, refresh, or ID tokens in localStorage or client-side cookies.
-- Logging auth codes, tokens, client secrets, or full provider responses.
-- Using unverified email claims as proof of identity.
-- Reusing sessions across login (no session rotation).
-- Committing `.env` files or hardcoding secrets in logic.
-- Using the `sub` (subject) claim as a display name (it is an ID, not a name).
+This skill adds the following scoped constraints on top of the global core rules:
 
-## Stop Conditions (Must Ask Clarifying Questions)
+- Authorization Code flow is required for OAuth/OIDC social login.
+- PKCE must be used where required and should default to `S256`.
+- `state` validation is mandatory.
+- `nonce` validation is mandatory for OIDC flows.
+- Session rotation is required after successful login.
+- Social auth must be integrated without rewriting unrelated existing auth logic unless explicitly requested.
+- Account linking rules must be explicit before implementation.
+- Routes, models, and session logic must be designed so that multiple providers can coexist safely.
 
-Stop and ask before any implementation if any of these are missing:
-- Provider client credentials and allowed redirect URIs.
-- The app framework and runtime are ambiguous or conflicting.
-- Session strategy is unclear (cookie vs server session store).
-- Account linking rules are unknown (merge by email or provider id).
-- The environment variable system or secrets manager is not defined.
-- Secrets Rotation Strategy is undefined (e.g., how to handle old vs new client secrets during a key roll).
+These constraints are enforced in detail by `references/AGENT_EXECUTION_SPEC.md`.
 
-## Required Output Structure (Required)
+## Social Auth Forbidden Practices
 
-See `references/AGENT_EXECUTION_SPEC.md` for the required output structure (source of truth). Summary:
+In addition to global security invariants, the following are explicitly prohibited for this skill:
+
+- implicit flow or token response in front-channel redirects
+- skipping `state` validation
+- skipping `nonce` validation for OIDC
+- wildcard or open redirect URI matching
+- storing access, refresh, or ID tokens in localStorage
+- logging auth codes, tokens, client secrets, or full provider responses
+- using unverified email claims as proof of identity
+- reusing pre-login session identifiers after successful auth
+- hardcoding secrets in source or config tracked by version control
+- using the `sub` claim as a display name
+
+## Required Output Structure
+
+The required output structure for this skill is defined in:
+
+- `references/AGENT_EXECUTION_SPEC.md`
+
+At minimum, output should remain structured around:
+
 1. Discovery Report
 2. Provider Docs Verification
 3. Required Environment Variables
@@ -148,14 +260,37 @@ See `references/AGENT_EXECUTION_SPEC.md` for the required output structure (sour
 6. Implementation Plan
 7. Testing Checklist
 
-In Required Environment Variables, always separate backend/server-only vs frontend/public and state who must provide them.
+When listing environment variables, always separate:
 
-If you cannot comply with the required order, stop and ask for clarification.
+- backend/server-only values
+- frontend/public values
+
+and clearly state ownership.
 
 ## Multi-Provider Invariant
 
-Assume multiple providers will coexist. Design routes, database models, and session logic so adding a second provider does not break the first.
+Assume more than one provider may need to coexist.
+
+Design:
+
+- routes
+- data model changes
+- identity linking
+- session logic
+- provider abstractions
+
+so that adding a second provider does not require breaking the first.
 
 ## Documentation Freshness
 
-Provider files are guidance only. You must verify the latest provider docs before coding. If docs conflict, stop and ask.
+Provider files in this repository are implementation guidance, not a guarantee of current provider documentation.
+
+Before coding:
+
+- verify current provider docs
+- verify current endpoints and requirements
+- verify scopes and callback expectations
+- surface conflicts if repository guidance and live provider docs differ
+- treat live provider requirements as authoritative when they introduce stricter or updated provider-specific constraints
+
+If provider support is partial, outdated, or ambiguous, stop and ask before implementation.

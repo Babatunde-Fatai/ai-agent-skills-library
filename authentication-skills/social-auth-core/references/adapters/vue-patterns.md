@@ -1,31 +1,27 @@
-# Vue OAuth Patterns (Frontend Only)
+# Vue Adapter Patterns
 
-**When to read:** When implementing the client-side login entry point in Vue.
-**What problem it solves:** Vue-specific guidance for login buttons and redirects.
-**When to skip:** If you are not building a Vue frontend.
-**Prerequisites:** Read `references/AGENT_EXECUTION_SPEC.md` and select a backend adapter.
+## Purpose
 
-## Login Button
-Use a full-page redirect to the backend login start route.
+Frontend integration patterns for Vue apps.
 
-Example:
-```vue
+## Relationship to Core Rules
+
+Global rules are defined in core/.
+
+## Login Pattern
+
 <template>
-  <a :href="loginUrl">Sign in with Google</a>
+  <button @click="startLogin">Sign in</button>
 </template>
 
 <script setup>
-const loginUrl = '/auth/google';
+const startLogin = () => {
+  window.location.href = '/auth/google';
+};
 </script>
-```
 
-## Redirect Handling
-- Let the backend handle provider redirects and session creation.
-- Use frontend routes only for post-login navigation or error display.
-- Do not parse or store tokens in the browser.
+## Rules
 
-## Checklist
-- [ ] Login button points to backend start route (for example, `/auth/google`).
-- [ ] No tokens stored in localStorage or cookies.
-- [ ] Frontend relies on backend redirects for auth completion.
-- [ ] Error UI reads sanitized query params only (no raw tokens).
+- frontend must not handle tokens
+- backend handles auth
+- frontend only triggers login and displays result

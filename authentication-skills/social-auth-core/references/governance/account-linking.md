@@ -1,48 +1,92 @@
-# Account Linking and Multi-Provider Coexistence
+# Account Linking Governance
 
-**When to read:** When linking accounts or merging by email.
-**What problem it solves:** Prevents account takeover during linking.
-**When to skip:** If account linking is out of scope.
-**Prerequisites:** Read `references/patterns/data-models.md`.
+## Purpose
+
+Defines how social authentication identities are linked to user accounts safely and consistently.
+
+## Relationship to Core Rules
+
+Global security and trust-boundary rules are defined in:
+
+- `../../../core/SECURITY_INVARIANTS.md`
+
+This file defines only identity-linking policy for social authentication.
+
+## Identity Model
+
+- each provider identity must be stored separately
+- each identity is uniquely identified by:
+  - provider
+  - provider account ID / subject identifier
+- multiple provider identities may map to one user
+- one provider identity must never map to multiple users
 
 ## Linking Policy
 
-- **Explicit Consent:** Prefer linking only when the user is already logged in or explicitly consents.
-- **Trusted Email Rule:** You may **only** auto-link an OAuth identity to an existing account if:
-    1. The emails match exactly (normalize to lowercase).
-    2. The *new* provider asserts the email is **verified** (`email_verified: true`).
-    3. The *existing* account has a verified email.
-- **Unverified Emails:** Never auto-merge on unverified emails.
+### Auto-Link Conditions
 
-## Data Model Requirements
+Auto-linking is allowed only if all of the following are true:
 
-- **Separation of Concerns:** Store provider identity records in a separate table (e.g., `Account` or `Identity`) keyed by `provider` and `providerAccountId`.
-- **Uniqueness:** Enforce a compound unique index on `[provider, providerAccountId]`.
-- **One-to-Many:** Allow multiple provider identities to map to a single `User` entity.
+1. emails match exactly after normalization
+2. provider email is verified
+3. existing account email is verified
+4. no conflicting identity record already exists
 
-## Logic & Security Flow (Implementation Guide)
+### Manual-Link Conditions
 
-### 1. The "Trusted Email" Check
-When a user logs in via a Provider:
-1. Search for an existing user by email.
-2. **IF** user exists:
-   - Check `Provider.email_verified`.
-   - **IF TRUE:** Link the new identity to the existing user. (Safe auto-link).
-   - **IF FALSE:** **STOP.** Return error: "Please verify your email with the provider first."
-3. **IF** user does not exist:
-   - Create new User + Identity.
-   - Set User email verified status based on `Provider.email_verified`.
+Require explicit user action or manual confirmation if:
 
-### 2. Pre-Account Takeover Protection
-*Scenario:* An unverified account exists (e.g., someone signed up with `target@gmail.com` but never clicked the magic link). A real user now logs in with Google as `target@gmail.com`.
+- email is unverified
+- provider identity is new but email matches an existing user
+- multiple existing identities create ambiguity
+- local account exists but linking confidence is insufficient
 
-**Required Behavior:**
-- If the existing local account is **unverified**, and the incoming OAuth login is **verified**, the OAuth login MUST supersede/claim the account.
-- Update the user's email verified status to `true`.
-- Link the provider identity.
-- *Reasoning:* A verified provider is a stronger proof of ownership than an unverified local registration.
+### Forbidden Link Conditions
 
-## Conflict Handling
+Do not link if:
 
-- **ID Collision:** If `provider` + `providerAccountId` is already linked to a *different* user ID, stop and surface a "Account already connected to another user" error.
-- **Duplicate Prevention:** Ensure your database schema constraints prevent creating duplicate rows for the same provider identity.
+- email is unverified
+- provider identity already belongs to another user
+- identity mismatch cannot be resolved safely
+- provider data is incomplete in a way that violates policy
+
+## Email-Based Decisions
+
+- verified email is required for trust-based auto-linking
+- unverified email must not be used for automatic linking
+- missing email requires alternate identity handling or restricted account flow
+- email match alone is not sufficient unless policy conditions are satisfied
+
+## Provider Subject Identifier Rules
+
+- provider `sub` / provider account ID is the canonical external identity key
+- it must always be stored
+- it must not be used as a display name
+- it must remain stable once linked unless provider migration rules are explicitly documented
+
+## Collision Handling
+
+- duplicate provider identity → reject linking
+- same email across different providers → follow explicit linking policy
+- ambiguous identity resolution → require manual confirmation
+- already-linked external identity → do not silently reassign
+
+## Multi-Provider Expectations
+
+- users may have multiple linked providers
+- adding a provider must not override existing identities
+- linking must be idempotent and safe
+- unlinking one provider must not corrupt the user’s remaining auth methods
+
+## Audit Requirements
+
+- linking decisions must be traceable
+- failed linking attempts should be logged safely
+- logs must not contain tokens, secrets, or sensitive provider payloads
+- audit records should identify why a link was allowed, rejected, or escalated
+
+## Maintenance Rule
+
+- account-linking policy belongs here
+- execution logic belongs in `AGENT_EXECUTION_SPEC.md`
+- schema details belong in patterns or data-model docs where appropriate

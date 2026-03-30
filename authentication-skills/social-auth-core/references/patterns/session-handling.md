@@ -1,56 +1,95 @@
 # Session Handling
 
-**When to read:** When creating or rotating sessions or pre-auth cookies.
-**What problem it solves:** Secure session and cookie defaults.
-**When to skip:** If session handling is fully managed and unchanged.
-**Prerequisites:** Read `references/patterns/oauth-flow-core.md`.
+## Purpose
 
-# Pre-Auth "Transaction" Cookie
+Defines reusable session and pre-auth state handling patterns for social authentication.
 
-When a user clicks "Login with Google", you cannot attach state to their main session (it doesn't exist yet). You must use an ephemeral cookie.
-Pre-auth cookies are a valid form of server-side storage when the payload is encrypted/signed and bound to a short TTL.
+## Relationship to Core Rules
 
-## Recommended Flow (adapt to current task)
-1. **Generate** `state`, `code_verifier`, and `nonce`.
-2. **Serialize** this data (JSON).
-3. **Encrypt/Sign** the data (Required to prevent tampering).
-4. **Set Cookie:**
-   - Name: `oauth_state` (or similar prefix)
-   - Value: `encrypted_json_blob`
-   - Path: `/api/auth` (Restrict scope if possible)
-   - MaxAge: 10 minutes (Short TTL)
-   - HttpOnly: true
-   - Secure: true
-   - SameSite: Lax
+Global security and cookie safety rules are defined in:
 
-## Verification (Callback)
-1. Read `oauth_state` cookie.
-2. Decrypt and parse.
-3. Compare `cookie.state` vs `query.state`.
-4. If valid, use `cookie.code_verifier` for token exchange.
-5. **CRITICAL:** Delete `oauth_state` cookie immediately after use.
+- `../../../core/SECURITY_INVARIANTS.md`
 
-## Session Security Defaults
+This file defines only the reusable session pattern for social-auth flows.
 
-- Rotate session id after successful login.
-- Use HTTPOnly, Secure cookies for session identifiers.
-- Use `SameSite=Lax` unless explicit cross-site flows require `None`.
-- Set short session TTLs and explicit idle timeouts.
+## When to Use
 
-## CSRF Protection
+Use this file when:
 
-- Enforce CSRF protections for any state-changing endpoints.
-- Bind pre-auth state to a server-side session to prevent login CSRF.
+- pre-auth state must survive a provider redirect
+- a login callback must bind to a prior login attempt
+- a session is created or rotated after successful authentication
+- cookies are involved in the auth flow
 
-## Session Storage
+## Pre-Auth State Pattern
 
-- Prefer server-side session stores (Redis, database, or framework session store).
-- Avoid storing user identity or tokens in client-readable cookies.
+A social-auth flow needs temporary pre-auth state before the real application session is established.
 
-## Logout
+This pre-auth state commonly contains:
 
-- Clear server session and rotate identifiers.
-- Revoke refresh tokens if supported.
+- provider
+- `state`
+- `nonce` when OIDC applies
+- `code_verifier`
+- issued-at / expiry metadata
+- one-time-use or replay-protection marker
 
+## Storage Options
 
----
+### Server-Side Session Store
+Use when:
+- the framework already has session support
+- you want stronger control over invalidation and TTL
+
+### Encrypted / Signed Backend-Controlled Cookie
+Use when:
+- a server-side session store is unavailable or intentionally avoided
+- the cookie can be strongly protected
+- the TTL is short
+- one-time-use semantics can still be enforced
+
+### Dedicated Pre-Auth Store
+Use when:
+- auth flows are shared across services
+- login state must be centrally managed
+- you need explicit provider-bound transaction tracking
+
+## Cookie Defaults for Session Identifiers
+
+Where session identifiers are stored in cookies, prefer:
+
+- `HttpOnly=true`
+- `Secure=true`
+- `SameSite=Lax` by default
+- short scope and path where possible
+
+Use `SameSite=None` only when the deployment topology truly requires it and the CSRF implications are understood.
+
+See `samesite-decision-tree.md`.
+
+## Session Rotation
+
+After successful login:
+
+- rotate the existing session identifier or issue a new session
+- do not keep the pre-login session identifier as the authenticated session
+- clear or invalidate pre-auth state after use
+
+## Validation Requirements
+
+- callback must not succeed without valid pre-auth state
+- expired pre-auth state must be rejected
+- reused pre-auth state must be rejected
+- post-login session must be distinct from any unauthenticated pre-auth context
+
+## Common Mistakes to Avoid
+
+- storing provider tokens in browser-readable storage
+- keeping long-lived pre-auth cookies
+- using the main app session before auth completion is verified
+- failing to rotate the session after login
+
+## Maintenance Rule
+
+- reusable session and pre-auth handling rules belong here
+- framework-specific cookie or middleware details belong in adapter docs

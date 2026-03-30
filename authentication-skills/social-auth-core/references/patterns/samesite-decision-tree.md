@@ -1,31 +1,77 @@
 # SameSite Decision Tree
 
-**When to read:** Session or token cookies are being set and the deployment involves more than one domain.
-**What problem it solves:** Selects safe SameSite policy based on domain topology and OAuth redirects.
-**When to skip:** No cookies are used.
-**Prerequisites:** Read `references/patterns/session-handling.md`.
+## Purpose
+
+Helps choose an appropriate SameSite policy for cookies used by social authentication flows.
+
+## Relationship to Core Rules
+
+Global security requirements remain in:
+
+- `../../../core/SECURITY_INVARIANTS.md`
+
+This file provides only a reusable decision aid for cookie policy selection.
+
+## When to Use
+
+Use this file when authentication relies on cookies and the deployment spans one or more origins.
 
 ## Decision Tree
 
-1. Frontend and backend on the same domain (e.g., app.example.com)
-   - Use `SameSite=Lax` (or `Strict` if no cross-site needs).
+### 1. Backend and frontend share the same site
+Example:
+- `app.example.com`
+- `api.example.com` with cookie scoped appropriately
 
-2. Frontend and backend on different subdomains of the same root (e.g., app.example.com and api.example.com)
-   - `SameSite=Lax` works if cookies are set on the root domain (e.g., `.example.com`).
+Recommended default:
+- `SameSite=Lax`
 
-3. Frontend and backend on completely different domains (e.g., myapp.com and api.myapp.dev)
-   - Use `SameSite=None` + `Secure`.
-   - Document CORS implications and ensure `credentials: include` is enabled.
+### 2. Backend and frontend are on different subdomains of the same parent domain
+Recommended default:
+- `SameSite=Lax` if the cookie domain and navigation pattern support it
 
-4. OAuth callback redirects (provider -> backend -> frontend)
-   - Callback is a top-level cross-site navigation.
-   - `SameSite=Lax` cookies are sent on top-level navigations, but NOT on subresource requests.
+Validate:
+- cookie domain
+- redirect path
+- whether browser requests needing credentials are same-site or cross-site
 
-## Security Tradeoffs
+### 3. Backend and frontend are on completely different sites
+Example:
+- `myapp.com`
+- `api.otherdomain.dev`
 
-- `SameSite=None` increases CSRF surface.
-- If `SameSite=None` is required, ensure CSRF protections are in place.
+Recommended when unavoidable:
+- `SameSite=None`
+- `Secure=true`
 
-## Testing Note
+Also required:
+- credentialed requests configured correctly
+- clear CSRF posture for any cookie-authenticated endpoints beyond the OAuth callback flow
 
-Safari and some mobile browsers have quirks with `SameSite=None`. Test across browsers.
+### 4. Provider redirect callback
+OAuth provider redirects are top-level navigations.
+
+Implication:
+- `SameSite=Lax` often works for the backend callback itself
+- follow-up frontend/API requests may still behave differently depending on site topology
+
+## Selection Guidance
+
+Prefer:
+1. `Lax` when possible
+2. `None` only when architecture requires cross-site cookie delivery
+3. `Strict` only when the auth flow and surrounding app behaviour can support it
+
+## Operational Checks
+
+Before finalizing SameSite:
+
+- confirm backend callback domain
+- confirm frontend-to-backend request pattern after login
+- confirm whether cookies need to be sent on cross-site XHR/fetch
+- confirm `Secure` can be enforced in deployed environments
+
+## Maintenance Rule
+
+- SameSite selection logic belongs here
+- exact cookie configuration per framework belongs in adapter docs

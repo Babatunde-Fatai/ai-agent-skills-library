@@ -1,32 +1,123 @@
-# OAuth Flow Core (Authorization Code + PKCE)
+# OAuth Flow Core
 
-**When to read:** Always when implementing OAuth/OIDC flow.
-**What problem it solves:** Defines required authorization code + PKCE steps.
-**When to skip:** Never for OAuth implementations.
-**Prerequisites:** Read `references/AGENT_EXECUTION_SPEC.md`.
+## Purpose
 
-## Required Flow Steps
+Defines the provider-agnostic core flow for OAuth 2.0 Authorization Code with PKCE and for OpenID Connect flows built on top of it.
 
-1. Generate `state`, `nonce`, and `code_verifier` per login attempt.
-2. Derive `code_challenge` from `code_verifier` using `S256`.
-3. Store `state`, `nonce`, and `code_verifier` server-side and bind to a pre-auth session (session store or encrypted cookie — see `session-handling.md`).
-4. Redirect to provider authorization endpoint with `response_type=code`, `code_challenge`, `code_challenge_method=S256`, `state`, and `nonce` (OIDC).
-5. On callback, verify `state` matches stored value and enforce one-time use.
-6. Exchange `code` for tokens at provider token endpoint with the original `code_verifier`.
-7. If OIDC, validate ID token signature and claims using provider JWKS.
-8. Create or update user account and rotate session identifier.
-9. Persist tokens server-side only and record token metadata.
+## Relationship to Core Rules
 
-## Error Handling Requirements
+Global security, execution order, stop conditions, and document precedence are defined in:
 
-- Reject missing or mismatched `state`.
-- Reject missing `code`.
-- Reject expired or invalid ID tokens.
-- Do not retry code exchange with the same `code`.
-- Log only sanitized error codes, never tokens or secrets.
+- `../../../core/SECURITY_INVARIANTS.md`
+- `../../../core/EXECUTION_RULES.md`
+- `../../../core/STOP_CONDITIONS.md`
+- `../../../core/DECISION_MODEL.md`
 
-## Multi-Provider Considerations
+This file defines only the reusable OAuth/OIDC flow pattern. Skill orchestration belongs in `../AGENT_EXECUTION_SPEC.md`.
 
-- Namescope state and PKCE data by provider.
-- Use provider-specific callback routes or include provider id in state.
-- Store provider ids separately to avoid collisions.
+## When to Use
+
+Use this file for every social-auth implementation that relies on OAuth 2.0 or OIDC.
+
+## Core Flow
+
+1. Generate `state` for every login attempt.
+2. Generate `nonce` when OIDC applies.
+3. Generate `code_verifier` for PKCE.
+4. Derive `code_challenge` from the verifier using `S256`.
+5. Persist pre-auth state in a backend-controlled store with:
+   - provider binding
+   - short TTL
+   - one-time-use semantics
+6. Redirect to the provider authorization endpoint with:
+   - `response_type=code`
+   - `client_id`
+   - `redirect_uri`
+   - `scope`
+   - `state`
+   - `code_challenge`
+   - `code_challenge_method=S256`
+   - `nonce` when OIDC applies
+7. On callback, validate:
+   - provider match
+   - `state`
+   - TTL / expiry
+   - one-time-use status
+   - `nonce` later during ID token validation when OIDC applies
+8. Exchange the authorization code using the original `code_verifier`.
+9. Validate token response and ID token claims when OIDC applies.
+10. Load or derive the provider profile.
+11. Link or create the local user according to account-linking governance.
+12. Rotate or create a server-side session.
+13. Persist tokens server-side only when the architecture requires storage.
+14. Invalidate the pre-auth state after successful or terminal failure handling.
+
+## Required Validations
+
+### Authorization Request
+- use Authorization Code flow only
+- use PKCE with `S256`
+- bind state to the provider and login attempt
+- request only necessary scopes
+
+### Callback
+- reject missing or mismatched `state`
+- reject expired or reused pre-auth state
+- reject callbacks for the wrong provider route
+- fail safely when provider returns an explicit error
+
+### Token Response
+- validate the provider token response shape
+- reject incomplete or malformed responses
+- validate ID token signature and claims when OIDC applies
+
+## OIDC-Specific Rules
+
+When OIDC applies:
+
+- `nonce` is required
+- validate ID token signature
+- validate `iss`
+- validate `aud`
+- validate `exp`
+- validate `iat` where relevant
+- validate `nonce`
+- validate `azp` when relevant to the provider
+
+See `jwks-validation-helper.md` for lightweight validation support where appropriate.
+
+## Pre-Auth State Requirements
+
+Pre-auth state should include only what is necessary to complete the flow safely, for example:
+
+- provider
+- state
+- nonce when needed
+- code verifier
+- created-at / expiry timestamp
+- one-time-use marker or equivalent replay protection
+
+Store this in a backend-controlled session, encrypted cookie, or server store depending on the selected architecture.
+
+## Error Handling Expectations
+
+- do not create a session on validation failure
+- do not retry the authorization code exchange blindly
+- do not continue when provider identity data is incomplete unless governance explicitly allows it
+- return a safe redirect or safe error response without leaking sensitive details
+
+## Output Implications
+
+A correct implementation based on this pattern should make it easy to identify:
+
+- where pre-auth state is stored
+- how callback validation works
+- where token exchange occurs
+- how identity linking is handled
+- where session rotation occurs
+
+## Maintenance Rule
+
+- reusable OAuth/OIDC flow logic belongs here
+- provider-specific variations belong in provider docs
+- framework-specific route and session details belong in adapter docs

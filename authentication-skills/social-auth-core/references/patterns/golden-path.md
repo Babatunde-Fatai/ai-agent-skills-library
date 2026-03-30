@@ -1,23 +1,75 @@
-# Golden Path (Canonical End-to-End)
-**When to read:** When you want a single, concrete example of the full OAuth/OIDC flow.
-**What problem it solves:** Removes ambiguity by showing the minimum full-stack flow in one place.
-**When to skip:** If you already have a working flow or need only a specific sub-step.
-**Prerequisites:** Read `references/AGENT_EXECUTION_SPEC.md` and `references/patterns/oauth-flow-core.md`.
+# Golden Path
 
-## Scope
-This example assumes Next.js App Router + Google. Adapt the same steps to other frameworks and providers.
+## Purpose
 
-## Minimal Flow
-1. Create login start route that generates `state`, `nonce`, and `code_verifier`, stores them server-side, and redirects to the provider authorization URL.
-2. Create callback route that validates `state`, exchanges `code` + `code_verifier` for tokens, and validates the ID token.
-3. Link or create the user account, rotate the session, and set the session cookie.
-4. Redirect to a success URL; use a safe error URL on failure.
+Provides one canonical end-to-end example path for implementing social authentication with minimal ambiguity.
 
-## Minimal File Plan (Example)
-1. `app/api/auth/google/route.ts`
-2. `app/api/auth/google/callback/route.ts`
-3. `lib/auth/preauth.ts` (state/nonce/verifier storage)
-4. `lib/oauth/google.ts` (auth URL + token exchange)
-5. `lib/auth/session.ts` (rotate + set session)
+## Relationship to Core Rules
 
-Use `references/adapters/nextjs-patterns.md` for route handler shape and `references/providers/google.md` for endpoints and scopes.
+This file is illustrative. It does not replace:
+
+- `../AGENT_EXECUTION_SPEC.md`
+- `oauth-flow-core.md`
+- provider docs
+- adapter docs
+
+## When to Use
+
+Use this file when you want a single compact example of how the main pieces fit together after discovery is complete.
+
+## Example Scope
+
+This example assumes:
+
+- one provider
+- one backend-controlled callback route
+- server-side pre-auth state
+- server-side session creation
+- safe redirect back into the application
+
+Adapt the same structure to the target framework and provider.
+
+## Canonical Flow
+
+1. Confirm provider, framework, callback ownership, and session model.
+2. Create login start route.
+3. Generate `state`, `nonce` when needed, and `code_verifier`.
+4. Persist pre-auth state server-side.
+5. Redirect to the provider authorization endpoint.
+6. Handle callback on a backend-owned route.
+7. Validate `state` and pre-auth state.
+8. Exchange authorization code for tokens using the original verifier.
+9. Validate ID token when OIDC applies.
+10. Load provider profile data if required.
+11. Link or create the local user.
+12. Rotate or create the application session.
+13. Redirect to a safe post-login destination.
+14. Invalidate pre-auth state.
+
+## Minimal File Plan Example
+
+A typical implementation may create or update:
+
+- start route
+- callback route
+- provider helper
+- pre-auth state helper
+- account-linking service
+- session creation / rotation service
+- auth-state hydration endpoint if the frontend requires it
+
+## What This Pattern Intentionally Omits
+
+This pattern does not hardcode:
+
+- a specific framework
+- a specific ORM
+- a specific provider endpoint set
+- a specific session library
+
+Those choices must come from discovery, provider docs, and adapter docs.
+
+## Maintenance Rule
+
+- this file should remain illustrative and compact
+- detailed rules belong in the core layer, execution spec, provider docs, and adapter docs

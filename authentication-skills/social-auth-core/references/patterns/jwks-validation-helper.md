@@ -1,26 +1,44 @@
 # JWKS Validation Helper
 
-**When to read:** Validating OIDC ID tokens from providers that publish JWKS endpoints (Google, Microsoft, etc.).
-**What problem it solves:** Provides a minimal JWKS fetch/cache helper without adding heavy dependencies.
-**When to skip:** If the project already uses `jose`, `jsonwebtoken`, `passport`, or similar.
-**Prerequisites:** Read `references/providers/{provider}.md` for discovery and JWKS endpoints.
+## Purpose
 
-## Minimal Helper (Node.js)
+Provides a lightweight helper pattern for validating OIDC ID token signatures using a provider JWKS endpoint when a heavier library is not being used.
 
-This helper fetches JWKS from the provider discovery document, caches keys for 1 hour, and verifies
-an ID token signature using Node.js `crypto`.
+## Relationship to Core Rules
+
+Global OIDC validation requirements are defined by:
+
+- `oauth-flow-core.md`
+- provider docs
+- `../../../core/SECURITY_INVARIANTS.md`
+
+This file is an implementation helper, not a substitute for full validation requirements.
+
+## When to Use
+
+Use this file when:
+
+- OIDC applies
+- the project does not already use a mature JWT / OIDC library
+- a lightweight helper is acceptable for the runtime
+
+If the project already uses a vetted library such as `jose`, prefer the existing library unless there is a strong reason not to.
+
+## Minimal Node.js Example
 
 ```ts
 import crypto from 'crypto';
 import https from 'https';
 
+type Json = Record<string, any>;
+
 const jwksCache = {
-  keys: null as null | any,
+  keys: null as null | Json,
   fetchedAt: 0,
   ttlMs: 60 * 60 * 1000,
 };
 
-function fetchJson(url: string): Promise<any> {
+function fetchJson(url: string): Promise<Json> {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
       let data = '';
@@ -36,55 +54,61 @@ function fetchJson(url: string): Promise<any> {
   });
 }
 
-async function getJwks(jwksUri: string) {
+async function getJwks(jwksUri: string): Promise<Json> {
   const now = Date.now();
   if (jwksCache.keys && now - jwksCache.fetchedAt < jwksCache.ttlMs) {
     return jwksCache.keys;
   }
+
   const jwks = await fetchJson(jwksUri);
   jwksCache.keys = jwks;
   jwksCache.fetchedAt = now;
   return jwks;
 }
 
-function importRsaKey(jwk: any) {
-  return crypto.createPublicKey({
-    key: jwk,
-    format: 'jwk',
-  });
+function decodeBase64Url(input: string): Buffer {
+  const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+  return Buffer.from(padded, 'base64');
 }
 
-function verifyJwtSignature(idToken: string, key: crypto.KeyObject) {
-  const [headerB64, payloadB64, signatureB64] = idToken.split('.');
-  const data = `${headerB64}.${payloadB64}`;
-  const signature = Buffer.from(signatureB64, 'base64url');
-  const verifier = crypto.createVerify('RSA-SHA256');
-  verifier.update(data);
-  verifier.end();
-  return verifier.verify(key, signature);
-}
-
-export async function validateIdTokenSignature(idToken: string, discoveryUrl: string) {
-  const { jwks_uri: jwksUri } = await fetchJson(discoveryUrl);
-  const { keys } = await getJwks(jwksUri);
-  const header = JSON.parse(Buffer.from(idToken.split('.')[0], 'base64url').toString('utf8'));
-  const jwk = keys.find((k: any) => k.kid === header.kid);
-  if (!jwk) return false;
-
-  const key = importRsaKey(jwk);
-  if (verifyJwtSignature(idToken, key)) return true;
-
-  // Key rotation fallback: refetch JWKS once and retry
-  jwksCache.keys = null;
-  const { keys: freshKeys } = await getJwks(jwksUri);
-  const freshJwk = freshKeys.find((k: any) => k.kid === header.kid);
-  if (!freshJwk) return false;
-  const freshKey = importRsaKey(freshJwk);
-  return verifyJwtSignature(idToken, freshKey);
+function parseJwt(token: string) {
+  const [header, payload, signature] = token.split('.');
+  return {
+    header: JSON.parse(decodeBase64Url(header).toString('utf8')),
+    payload: JSON.parse(decodeBase64Url(payload).toString('utf8')),
+    signature,
+    signingInput: token.split('.').slice(0, 2).join('.'),
+  };
 }
 ```
 
-## Cache Invalidation
+## Required Validation Beyond Signature
 
-- Cache JWKS for 1 hour max.
-- If signature validation fails, refetch JWKS once (key rotation scenario).
+Do not stop at signature validation. Also validate:
+
+- issuer
+- audience
+- expiry
+- nonce
+- authorized party where relevant
+- provider-specific claim expectations
+
+## Caching Guidance
+
+- cache JWKS for a bounded TTL
+- allow key rotation by refreshing on cache expiry
+- handle unknown `kid` safely by re-fetching once before failing
+
+## When Not to Use This Pattern
+
+Do not use this helper as-is when:
+
+- the runtime already has a proven OIDC library
+- the provider has unusual signing requirements not covered here
+- the team cannot safely maintain custom crypto-sensitive code
+
+## Maintenance Rule
+
+- lightweight helper examples belong here
+- provider-specific discovery endpoints and claims belong in provider docs

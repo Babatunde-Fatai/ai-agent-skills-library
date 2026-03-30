@@ -1,14 +1,33 @@
-# Flask OAuth Patterns
+## `references/adapters/flask-patterns.md`
 
-**When to read:** When implementing social auth in Flask.
-**What problem it solves:** Flask-specific routing and session handling for OAuth.
-**When to skip:** If you are not using Flask.
-**Prerequisites:** Read `references/AGENT_EXECUTION_SPEC.md` and `references/patterns/oauth-flow-core.md`.
+````md
+# Flask Adapter Patterns
 
-## Routes
-Define login start and callback routes with Flask decorators.
+## Purpose
+
+Provides Flask-specific integration patterns for social authentication.
+
+## Relationship to Core Rules
+
+Global security, execution order, stop conditions, and decision hierarchy are defined in:
+
+- `../../../core/SECURITY_INVARIANTS.md`
+- `../../../core/EXECUTION_RULES.md`
+- `../../../core/STOP_CONDITIONS.md`
+- `../../../core/DECISION_MODEL.md`
+
+This file defines Flask-specific routing, session, and callback implementation guidance only.
+
+## When to Use
+
+Use this file when social authentication is being implemented in a Flask application.
+
+## Route Placement
+
+Define login start and callback routes using Flask decorators.
 
 Example:
+
 ```python
 from flask import Flask
 
@@ -22,26 +41,4 @@ def oauth_start(provider):
 def oauth_callback(provider):
     ...
 ```
-
-## Login Start (Server-Side)
-- Generate `state`, `nonce`, and `code_verifier` on the server.
-- Store pre-auth state in a server-side session store or encrypted cookie with short TTL.
-- Redirect to provider authorization URL.
-
-## Callback
-- Read `code` and `state` from the query.
-- Load and validate pre-auth state (one-time use, TTL enforced).
-- Exchange `code` + `code_verifier` for tokens.
-- Validate ID token if OIDC.
-- Link or create user, rotate session, redirect.
-
-## Session and Cookies
-- Flask's default session cookie is signed but not encrypted.
-- Do not store `nonce` or `code_verifier` in readable cookies. Use server-side sessions or encrypted cookies.
-
-## Checklist
-- [ ] Routes defined for start and callback.
-- [ ] Pre-auth state stored server-side or encrypted cookie with short TTL.
-- [ ] State, nonce, and PKCE verified on callback.
-- [ ] Tokens stored server-side only and encrypted at rest.
-- [ ] Session ID rotated after login.
+````

@@ -1,3 +1,5 @@
+
+
 # Useful AI Agent Skills
 
 A collection of production-ready skills for AI coding agents. Built and tested with Claude Code, but designed to work with any AI agent — OpenAI Codex, GitHub Copilot, Cursor, Windsurf, or any tool that can read structured markdown instructions.
@@ -30,7 +32,7 @@ Every skill has a `SKILL.md` entry point. How you load it depends on your agent:
 
 **Claude Code (recommended — built and tested here first)**
 ```bash
-# Add as a project skill (persists across sessions)
+# Add as a global skill (persists across all projects and sessions)
 cp -r payment-gateway-integrations-skills/paystack-integration ~/.claude/skills/paystack-integration
 
 # Add another skill the same way
